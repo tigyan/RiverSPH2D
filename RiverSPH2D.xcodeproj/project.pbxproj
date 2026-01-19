@@ -10,10 +10,82 @@
 		1CA05C8E2F1E3B2F0043BEEA /* RiverSPH2D.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = RiverSPH2D.app; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
+/* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
+		1C38A3202F1E504E0074D906 /* Exceptions for "Rendering" folder in "RiverSPH2D" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				ParticleRenderer.swift,
+				RenderUniforms.swift,
+			);
+			target = 1CA05C8D2F1E3B2F0043BEEA /* RiverSPH2D */;
+		};
+		1CA05CF32F1E3DBB0043BEEA /* Exceptions for "Utilities" folder in "RiverSPH2D" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				FileIO.swift,
+				Logger.swift,
+				MathSIMD.swift,
+				MTLHelpers.swift,
+			);
+			target = 1CA05C8D2F1E3B2F0043BEEA /* RiverSPH2D */;
+		};
+/* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
+
 /* Begin PBXFileSystemSynchronizedRootGroup section */
-		1CA05C902F1E3B2F0043BEEA /* RiverSPH2D */ = {
+		1C38A2FA2F1E48640074D906 /* Docs */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
-			path = RiverSPH2D;
+			path = Docs;
+			sourceTree = "<group>";
+		};
+		1CA05C9E2F1E3B7F0043BEEA /* App */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = App;
+			sourceTree = "<group>";
+		};
+		1CA05C9F2F1E3BA10043BEEA /* UI */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = UI;
+			sourceTree = "<group>";
+		};
+		1CA05CAD2F1E3BE50043BEEA /* MetalView */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = MetalView;
+			sourceTree = "<group>";
+		};
+		1CA05CAE2F1E3BF80043BEEA /* Simulation */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = Simulation;
+			sourceTree = "<group>";
+		};
+		1CA05CAF2F1E3C020043BEEA /* Obstacle */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = Obstacle;
+			sourceTree = "<group>";
+		};
+		1CA05CB02F1E3C0B0043BEEA /* Rendering */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+				1C38A3202F1E504E0074D906 /* Exceptions for "Rendering" folder in "RiverSPH2D" target */,
+			);
+			path = Rendering;
+			sourceTree = "<group>";
+		};
+		1CA05CB12F1E3C140043BEEA /* Utilities */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+				1CA05CF32F1E3DBB0043BEEA /* Exceptions for "Utilities" folder in "RiverSPH2D" target */,
+			);
+			path = Utilities;
+			sourceTree = "<group>";
+		};
+		1CA05CB22F1E3C1C0043BEEA /* Shaders */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = Shaders;
+			sourceTree = "<group>";
+		};
+		1CA05CB32F1E3C260043BEEA /* Resources */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = Resources;
 			sourceTree = "<group>";
 		};
 /* End PBXFileSystemSynchronizedRootGroup section */
@@ -32,7 +104,16 @@
 		1CA05C852F1E3B2F0043BEEA = {
 			isa = PBXGroup;
 			children = (
-				1CA05C902F1E3B2F0043BEEA /* RiverSPH2D */,
+				1C38A2FA2F1E48640074D906 /* Docs */,
+				1CA05CB32F1E3C260043BEEA /* Resources */,
+				1CA05CB22F1E3C1C0043BEEA /* Shaders */,
+				1CA05CB12F1E3C140043BEEA /* Utilities */,
+				1CA05CB02F1E3C0B0043BEEA /* Rendering */,
+				1CA05CAF2F1E3C020043BEEA /* Obstacle */,
+				1CA05CAE2F1E3BF80043BEEA /* Simulation */,
+				1CA05CAD2F1E3BE50043BEEA /* MetalView */,
+				1CA05C9F2F1E3BA10043BEEA /* UI */,
+				1CA05C9E2F1E3B7F0043BEEA /* App */,
 				1CA05C8F2F1E3B2F0043BEEA /* Products */,
 			);
 			sourceTree = "<group>";
@@ -61,7 +142,16 @@
 			dependencies = (
 			);
 			fileSystemSynchronizedGroups = (
-				1CA05C902F1E3B2F0043BEEA /* RiverSPH2D */,
+				1C38A2FA2F1E48640074D906 /* Docs */,
+				1CA05C9E2F1E3B7F0043BEEA /* App */,
+				1CA05C9F2F1E3BA10043BEEA /* UI */,
+				1CA05CAD2F1E3BE50043BEEA /* MetalView */,
+				1CA05CAE2F1E3BF80043BEEA /* Simulation */,
+				1CA05CAF2F1E3C020043BEEA /* Obstacle */,
+				1CA05CB02F1E3C0B0043BEEA /* Rendering */,
+				1CA05CB12F1E3C140043BEEA /* Utilities */,
+				1CA05CB22F1E3C1C0043BEEA /* Shaders */,
+				1CA05CB32F1E3C260043BEEA /* Resources */,
 			);
 			name = RiverSPH2D;
 			packageProductDependencies = (
@@ -264,7 +354,7 @@
 					"$(inherited)",
 					"@executable_path/../Frameworks",
 				);
-				MARKETING_VERSION = 1.0;
+				MARKETING_VERSION = 0.1;
 				PRODUCT_BUNDLE_IDENTIFIER = tigyan.dev.RiverSPH2D;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				REGISTER_APP_GROUPS = YES;
@@ -296,7 +386,7 @@
 					"$(inherited)",
 					"@executable_path/../Frameworks",
 				);
-				MARKETING_VERSION = 1.0;
+				MARKETING_VERSION = 0.1;
 				PRODUCT_BUNDLE_IDENTIFIER = tigyan.dev.RiverSPH2D;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				REGISTER_APP_GROUPS = YES;

@@ -1,0 +1,7 @@
+{
+  "domain": { "Lx": 20.0 },
+  "particles": { "count": 50000 },
+  "flow": { "driveAccel": 6.0, "dragK": 0.8 },
+  "collide": { "particleRadius": 0.05, "friction": 0.85 },
+  "time": { "fixedDt": 0.016666667, "substeps": 2 }
+}
