@@ -15,6 +15,8 @@ struct RenderUniforms {
     float  maxSpeed;
     uint   colorMode;
     uint   pad0;
+    float  particleAlpha;
+    float  pad1;
 };
 
 struct VSOut {
@@ -22,6 +24,7 @@ struct VSOut {
     float  psize [[point_size]];
     float  speedNorm;
     float  colorMode;
+    float  particleAlpha;
 };
 
 vertex VSOut vs_particles(
@@ -41,6 +44,7 @@ vertex VSOut vs_particles(
     float speed = length(vel[vid]);
     o.speedNorm = clamp(speed / max(uni.maxSpeed, 1e-3f), 0.0f, 1.0f);
     o.colorMode = (uni.colorMode != 0) ? 1.0f : 0.0f;
+    o.particleAlpha = clamp(uni.particleAlpha, 0.0f, 1.0f);
     return o;
 }
 
@@ -58,5 +62,6 @@ fragment float4 fs_particles(VSOut in [[stage_in]],
         float3 hot = float3(1.0, 0.2, 0.1);
         base = mix(cold, hot, t);
     }
+    base *= in.particleAlpha;
     return float4(base, 1.0);
 }

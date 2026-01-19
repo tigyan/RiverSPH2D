@@ -29,6 +29,8 @@ struct SPHParameters: Codable, Equatable {
         var xsph: Float = 0.08
         /// Safety clamp for extreme bursts
         var maxSpeed: Float = 12.0
+        /// Boundary influence strength (0..2)
+        var boundaryStrength: Float = 1.0
     }
     struct Flow: Codable, Equatable {
         /// Ускорение вправо (аналог g*S)

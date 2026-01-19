@@ -15,6 +15,8 @@ final class AppModel: ObservableObject {
     @Published var isRunning: Bool = true
     @Published var selectedMaskName: String = "river_mask.png"
     @Published var colorBySpeed: Bool = false
+    @Published var showVelocityField: Bool = false
+    @Published var showVelocityArrows: Bool = false
 
     @Published var stats = SimulationStats()
 

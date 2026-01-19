@@ -30,6 +30,7 @@ struct GPUParams {
     var viscosity: Float
     var xsph: Float
     var maxSpeed: Float
+    var boundaryStrength: Float
 
     var gridSizeX: UInt32
     var gridSizeY: UInt32

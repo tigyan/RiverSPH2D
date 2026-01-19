@@ -33,6 +33,7 @@ Solids are represented by static boundary particles sampled along the mask edge.
 They contribute to density and pressure forces but do not move.
 We use a psi weight per boundary particle (Akinci-style) computed from kernel sums,
 so boundary influence matches the target rest density.
+Boundary influence can be scaled with a user parameter (boundaryStrength).
 
 ## Kernels
 We use standard poly6 (density) + spiky gradient (pressure) + viscosity Laplacian (2D forms).

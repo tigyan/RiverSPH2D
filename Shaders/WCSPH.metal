@@ -101,7 +101,7 @@ kernel void computeDensityPressure(
                 float r2 = dot(r, r);
                 if (r2 < h2) {
                     float t = h2 - r2;
-                    rho += bPsi[jb] * poly6 * t * t * t;
+                    rho += gp.boundaryStrength * bPsi[jb] * poly6 * t * t * t;
                 }
                 jb = bGridNext[jb];
             }
@@ -190,14 +190,14 @@ kernel void computeForcesIntegrate(
                     float rlen = sqrt(r2);
                     float2 grad = spikyGrad * (h - rlen) * (h - rlen) * (r / rlen);
 
-                    acc -= bPsi[jb] * (pI / (rhoI * rhoI)) * grad;
+                    acc -= gp.boundaryStrength * bPsi[jb] * (pI / (rhoI * rhoI)) * grad;
 
                     float lap = viscLap * (h - rlen);
-                    visc += bPsi[jb] * (float2(0.0f) - v) / gp.restDensity * lap;
+                    visc += gp.boundaryStrength * bPsi[jb] * (float2(0.0f) - v) / gp.restDensity * lap;
 
                     float t = h2 - r2;
                     float w = poly6 * t * t * t;
-                    xsph += bPsi[jb] * (float2(0.0f) - v) / gp.restDensity * w;
+                    xsph += gp.boundaryStrength * bPsi[jb] * (float2(0.0f) - v) / gp.restDensity * w;
                 }
                 jb = bGridNext[jb];
             }
@@ -220,4 +220,67 @@ kernel void computeForcesIntegrate(
 
     pos[id] = p;
     vel[id] = v;
+}
+
+kernel void computeVelocityField(
+    texture2d<float, access::write> fieldTex [[texture(0)]],
+    texture2d<float, access::sample> sdfTex [[texture(1)]],
+    device const float2* pos [[buffer(0)]],
+    device const float2* vel [[buffer(1)]],
+    device atomic_int* gridHead [[buffer(2)]],
+    device const int* gridNext [[buffer(3)]],
+    constant GPUParams& gp [[buffer(4)]],
+    uint2 gid [[thread_position_in_grid]]
+){
+    uint w = fieldTex.get_width();
+    uint h = fieldTex.get_height();
+    if (gid.x >= w || gid.y >= h) return;
+
+    float2 uv = (float2(gid) + 0.5f) / float2(w, h);
+    float2 p = gp.domainMin + float2(uv.x * gp.Lx, uv.y * gp.Ly);
+
+    constexpr sampler samp(address::repeat, filter::linear);
+    float2 uvS = worldToUV(p, gp);
+    uvS.y = clamp(uvS.y, 0.0f, 1.0f);
+    float sdf = sdfTex.sample(samp, uvS).r;
+    if (sdf < 0.0f) {
+        fieldTex.write(float4(0.0f), gid);
+        return;
+    }
+
+    float hlen = max(gp.smoothingLength, 1e-5f);
+    float h2 = hlen * hlen;
+    float h4 = h2 * h2;
+    float h8 = h4 * h4;
+    float poly6 = 4.0f / (M_PI_F * h8);
+
+    float2 sumV = float2(0.0f);
+    float sumW = 0.0f;
+
+    int2 c = cellCoord(p, gp);
+    for (int oy = -1; oy <= 1; ++oy) {
+        int ny = clamp(c.y + oy, 0, int(gp.gridSizeY) - 1);
+        for (int ox = -1; ox <= 1; ++ox) {
+            int nx = c.x + ox;
+            if (nx < 0) nx += int(gp.gridSizeX);
+            if (nx >= int(gp.gridSizeX)) nx -= int(gp.gridSizeX);
+
+            uint cell = uint(ny) * gp.gridSizeX + uint(nx);
+            int j = atomic_load_explicit(&gridHead[cell], memory_order_relaxed);
+            while (j != -1) {
+                float2 r = deltaPeriodic(p, pos[j], gp);
+                float r2 = dot(r, r);
+                if (r2 < h2) {
+                    float t = h2 - r2;
+                    float wj = poly6 * t * t * t;
+                    sumW += wj;
+                    sumV += wj * vel[j];
+                }
+                j = gridNext[j];
+            }
+        }
+    }
+
+    float2 v = (sumW > 1e-6f) ? (sumV / sumW) : float2(0.0f);
+    fieldTex.write(float4(v, 0.0f, 0.0f), gid);
 }

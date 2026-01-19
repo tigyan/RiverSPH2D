@@ -1,4 +1,4 @@
-# Architecture (v0.3.41)
+# Architecture (v0.4)
 
 ## Modules
 - App/UI (SwiftUI): parameters, play/pause, reset, stats

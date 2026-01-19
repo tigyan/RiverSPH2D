@@ -14,6 +14,8 @@ final class ParticleRenderer: NSObject, MTKViewDelegate {
 
     private var renderPSO: MTLRenderPipelineState!
     private var maskPSO: MTLRenderPipelineState?
+    private var velocityPSO: MTLRenderPipelineState?
+    private var arrowPSO: MTLRenderPipelineState?
     private var renderReady: Bool = false
     private var lastTime: CFTimeInterval = CACurrentMediaTime()
     private var fpsEMA: Double = 60
@@ -68,6 +70,43 @@ final class ParticleRenderer: NSObject, MTKViewDelegate {
         } else {
             print("Mask shader not found in default library.")
         }
+
+        if let vMask = lib.makeFunction(name: "vs_mask"),
+           let fField = lib.makeFunction(name: "fs_velocityField") {
+            let fieldDesc = MTLRenderPipelineDescriptor()
+            fieldDesc.vertexFunction = vMask
+            fieldDesc.fragmentFunction = fField
+            fieldDesc.colorAttachments[0].pixelFormat = view.colorPixelFormat
+            do {
+                velocityPSO = try device.makeRenderPipelineState(descriptor: fieldDesc)
+            } catch {
+                print("Velocity field PSO error: \(error)")
+                velocityPSO = nil
+            }
+        }
+
+        if let vArrows = lib.makeFunction(name: "vs_velocityArrows"),
+           let fArrows = lib.makeFunction(name: "fs_velocityArrows") {
+            let arrowDesc = MTLRenderPipelineDescriptor()
+            arrowDesc.vertexFunction = vArrows
+            arrowDesc.fragmentFunction = fArrows
+            arrowDesc.colorAttachments[0].pixelFormat = view.colorPixelFormat
+            if let attachment = arrowDesc.colorAttachments[0] {
+                attachment.isBlendingEnabled = true
+                attachment.rgbBlendOperation = .add
+                attachment.alphaBlendOperation = .add
+                attachment.sourceRGBBlendFactor = .sourceAlpha
+                attachment.destinationRGBBlendFactor = .oneMinusSourceAlpha
+                attachment.sourceAlphaBlendFactor = .one
+                attachment.destinationAlphaBlendFactor = .oneMinusSourceAlpha
+            }
+            do {
+                arrowPSO = try device.makeRenderPipelineState(descriptor: arrowDesc)
+            } catch {
+                print("Velocity arrows PSO error: \(error)")
+                arrowPSO = nil
+            }
+        }
     }
 
     func mtkView(_ view: MTKView, drawableSizeWillChange size: CGSize) {}
@@ -106,6 +145,17 @@ final class ParticleRenderer: NSObject, MTKViewDelegate {
             enc.drawPrimitives(type: .triangleStrip, vertexStart: 0, vertexCount: 4)
         }
 
+        if model.showVelocityField,
+           let engine = model.engine,
+           let fieldTex = engine.velocityFieldTexture(),
+           let velocityPSO {
+            enc.setRenderPipelineState(velocityPSO)
+            enc.setFragmentTexture(fieldTex, index: 0)
+            var uni = FieldUniforms(maxSpeed: model.params.sph.maxSpeed, opacity: 0.55)
+            enc.setFragmentBytes(&uni, length: MemoryLayout<FieldUniforms>.stride, index: 0)
+            enc.drawPrimitives(type: .triangleStrip, vertexStart: 0, vertexCount: 4)
+        }
+
         if renderReady, let engine = model.engine, engine.isReady() {
             enc.setRenderPipelineState(renderPSO)
             let posBuf = engine.particlePositionBuffer()
@@ -118,10 +168,32 @@ final class ParticleRenderer: NSObject, MTKViewDelegate {
                 domainMax: engine.domainMax(),
                 pointRadius: model.params.collide.particleRadius,
                 maxSpeed: max(1e-3, model.params.sph.maxSpeed),
-                colorMode: model.colorBySpeed ? 1 : 0
+                colorMode: model.colorBySpeed ? 1 : 0,
+                particleAlpha: model.showVelocityArrows ? 0.15 : 1.0
             )
             enc.setVertexBytes(&uni, length: MemoryLayout<RenderUniforms>.stride, index: 1)
             enc.drawPrimitives(type: .point, vertexStart: 0, vertexCount: engine.particleCount())
+        }
+
+        if model.showVelocityArrows,
+           let engine = model.engine,
+           let fieldTex = engine.velocityFieldTexture(),
+           let arrowPSO {
+            enc.setRenderPipelineState(arrowPSO)
+            enc.setVertexTexture(fieldTex, index: 0)
+            var uni = ArrowUniforms(
+                fieldInfo: SIMD4<Float>(
+                    Float(fieldTex.width),
+                    Float(fieldTex.height),
+                    max(1e-3, model.params.sph.maxSpeed),
+                    1.0
+                ),
+                arrowInfo: SIMD4<Float>(1.2, 0, 0, 0)
+            )
+            enc.setVertexBytes(&uni, length: MemoryLayout<ArrowUniforms>.stride, index: 0)
+            enc.setFragmentBytes(&uni, length: MemoryLayout<ArrowUniforms>.stride, index: 0)
+            let vertexCount = fieldTex.width * fieldTex.height * 6
+            enc.drawPrimitives(type: .line, vertexStart: 0, vertexCount: vertexCount)
         }
 
         enc.endEncoding()
@@ -137,4 +209,17 @@ struct RenderUniforms {
     var maxSpeed: Float
     var colorMode: UInt32
     var pad0: UInt32 = 0
+    var particleAlpha: Float = 1.0
+    var pad1: Float = 0
+}
+
+struct FieldUniforms {
+    var maxSpeed: Float
+    var opacity: Float
+    var pad: SIMD2<Float> = .zero
+}
+
+struct ArrowUniforms {
+    var fieldInfo: SIMD4<Float>
+    var arrowInfo: SIMD4<Float>
 }

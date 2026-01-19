@@ -17,6 +17,7 @@ final class SPHEngine {
     private var buildGridPSO: MTLComputePipelineState!
     private var densityPSO: MTLComputePipelineState!
     private var forcesPSO: MTLComputePipelineState!
+    private var fieldPSO: MTLComputePipelineState!
     private var collidePSO: MTLComputePipelineState!
 
     private var buffers: ParticleBuffers!
@@ -27,6 +28,9 @@ final class SPHEngine {
     private var boundaryGridNext: MTLBuffer!
     private var boundaryCount: Int = 0
     private var gpuParamsBuf: MTLBuffer!
+    private var velocityFieldTex: MTLTexture?
+
+    private let fieldSize = SIMD2<Int>(128, 64)
 
     private var obstacle: ObstacleAsset!
     private var params: SPHParameters!
@@ -77,6 +81,11 @@ final class SPHEngine {
             pipelinesReady = false
             return
         }
+        guard let fField = lib.makeFunction(name: "computeVelocityField") else {
+            print("Missing Metal function: computeVelocityField (check Shaders/WCSPH.metal in target)")
+            pipelinesReady = false
+            return
+        }
         guard let fCollide = lib.makeFunction(name: "collideSDF") else {
             print("Missing Metal function: collideSDF (check Shaders/CollideSDF.metal in target)")
             pipelinesReady = false
@@ -88,6 +97,7 @@ final class SPHEngine {
             buildGridPSO = try device.makeComputePipelineState(function: fBuild)
             densityPSO = try device.makeComputePipelineState(function: fDensity)
             forcesPSO = try device.makeComputePipelineState(function: fForces)
+            fieldPSO = try device.makeComputePipelineState(function: fField)
             collidePSO = try device.makeComputePipelineState(function: fCollide)
             pipelinesReady = true
         } catch {
@@ -174,6 +184,8 @@ final class SPHEngine {
         // GPU params buffer
         gpuParamsBuf = device.makeBuffer(length: MemoryLayout<GPUParams>.stride, options: [.storageModeShared])
         updateParams(params)
+
+        velocityFieldTex = makeVelocityFieldTexture(width: fieldSize.x, height: fieldSize.y)
     }
 
     func updateParams(_ params: SPHParameters) {
@@ -215,6 +227,7 @@ final class SPHEngine {
             viscosity: params.sph.viscosity,
             xsph: params.sph.xsph,
             maxSpeed: params.sph.maxSpeed,
+            boundaryStrength: params.sph.boundaryStrength,
             gridSizeX: UInt32(derived.gridSizeX),
             gridSizeY: UInt32(derived.gridSizeY),
             gridCount: UInt32(derived.gridCount),
@@ -224,7 +237,7 @@ final class SPHEngine {
     }
 
     func step(frameDt: Double) {
-        guard let params = self.params,
+        guard let _ = self.params,
               let obstacle = self.obstacle,
               let buffers = self.buffers,
               let derived = self.derived else {
@@ -290,6 +303,31 @@ final class SPHEngine {
             dispatch(enc, count: buffers.count, pso: collidePSO)
         }
 
+        // Rebuild grid for up-to-date field sampling
+        enc.setComputePipelineState(clearGridPSO)
+        enc.setBuffer(gridHead, offset: 0, index: 0)
+        enc.setBuffer(gpuParamsBuf, offset: 0, index: 1)
+        dispatch(enc, count: derived.gridCount, pso: clearGridPSO)
+
+        enc.setComputePipelineState(buildGridPSO)
+        enc.setBuffer(buffers.pos, offset: 0, index: 0)
+        enc.setBuffer(gridHead, offset: 0, index: 1)
+        enc.setBuffer(buffers.gridNext, offset: 0, index: 2)
+        enc.setBuffer(gpuParamsBuf, offset: 0, index: 3)
+        dispatch(enc, count: buffers.count, pso: buildGridPSO)
+
+        if let fieldTex = velocityFieldTex {
+            enc.setComputePipelineState(fieldPSO)
+            enc.setTexture(fieldTex, index: 0)
+            enc.setTexture(obstacle.sdfTexture, index: 1)
+            enc.setBuffer(buffers.pos, offset: 0, index: 0)
+            enc.setBuffer(buffers.vel, offset: 0, index: 1)
+            enc.setBuffer(gridHead, offset: 0, index: 2)
+            enc.setBuffer(buffers.gridNext, offset: 0, index: 3)
+            enc.setBuffer(gpuParamsBuf, offset: 0, index: 4)
+            dispatch2D(enc, width: fieldSize.x, height: fieldSize.y, pso: fieldPSO)
+        }
+
         enc.endEncoding()
         cmd.commit()
     }
@@ -301,9 +339,22 @@ final class SPHEngine {
         enc.dispatchThreadgroups(tgCount, threadsPerThreadgroup: threadsPerTG)
     }
 
+    private func dispatch2D(_ enc: MTLComputeCommandEncoder, width: Int, height: Int, pso: MTLComputePipelineState) {
+        let w = pso.threadExecutionWidth
+        let h = max(1, pso.maxTotalThreadsPerThreadgroup / w)
+        let threadsPerTG = MTLSize(width: w, height: h, depth: 1)
+        let tgCount = MTLSize(
+            width: (width + w - 1) / w,
+            height: (height + h - 1) / h,
+            depth: 1
+        )
+        enc.dispatchThreadgroups(tgCount, threadsPerThreadgroup: threadsPerTG)
+    }
+
     func particlePositionBuffer() -> MTLBuffer { buffers.pos }
     func particleVelocityBuffer() -> MTLBuffer { buffers.vel }
     func particleCount() -> Int { buffers.count }
+    func velocityFieldTexture() -> MTLTexture? { velocityFieldTex }
 
     func domainMin() -> SIMD2<Float> { domainMinV }
     func domainMax() -> SIMD2<Float> { domainMaxV }
@@ -463,10 +514,10 @@ final class SPHEngine {
             head[cell] = Int32(i)
         }
 
-        head.withUnsafeBytes { raw in
+        _ = head.withUnsafeBytes { raw in
             memcpy(boundaryGridHead.contents(), raw.baseAddress!, raw.count)
         }
-        next.withUnsafeBytes { raw in
+        _ = next.withUnsafeBytes { raw in
             memcpy(boundaryGridNext.contents(), raw.baseAddress!, raw.count)
         }
     }
@@ -554,5 +605,17 @@ final class SPHEngine {
 
     private func wrapX(_ x: Float, Lx: Float) -> Float {
         x - floor(x / Lx) * Lx
+    }
+
+    private func makeVelocityFieldTexture(width: Int, height: Int) -> MTLTexture? {
+        let desc = MTLTextureDescriptor.texture2DDescriptor(
+            pixelFormat: .rgba32Float,
+            width: width,
+            height: height,
+            mipmapped: false
+        )
+        desc.usage = [.shaderRead, .shaderWrite]
+        desc.storageMode = .private
+        return device.makeTexture(descriptor: desc)
     }
 }

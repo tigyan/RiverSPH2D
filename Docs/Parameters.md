@@ -1,4 +1,4 @@
-# Parameters (v0.3.41)
+# Parameters (v0.4)
 
 ## domain.Lx
 World length along the river (x-axis). X is periodic.
@@ -26,6 +26,9 @@ XSPH velocity smoothing factor.
 
 ## sph.maxSpeed
 Safety clamp for extreme bursts.
+
+## sph.boundaryStrength
+Scales boundary particle influence (0..2).
 
 ## flow.driveAccel
 Constant acceleration to the right. Interpreted as a simplified "energy slope" term (like g*S).

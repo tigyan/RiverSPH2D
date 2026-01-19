@@ -15,7 +15,7 @@ struct ContentView: View {
         HStack(spacing: 12) {
             ScrollView {
                 VStack(alignment: .leading, spacing: 10) {
-                    Text("RiverSPH2D v0.3.41")
+                    Text("RiverSPH2D v0.4")
                         .font(.headline)
                         .foregroundStyle(.primary)
 
@@ -35,9 +35,15 @@ struct ContentView: View {
                     }
 
                     GroupBox("View") {
-                        Toggle("Color by speed", isOn: $model.colorBySpeed)
-                            .help("Color particles based on velocity magnitude.")
-                            .padding(6)
+                        VStack(alignment: .leading, spacing: 6) {
+                            Toggle("Color by speed", isOn: $model.colorBySpeed)
+                                .help("Color particles based on velocity magnitude.")
+                            Toggle("Velocity field", isOn: $model.showVelocityField)
+                                .help("Show velocity field overlay (128x64).")
+                            Toggle("Velocity arrows", isOn: $model.showVelocityArrows)
+                                .help("Show velocity vectors as arrows.")
+                        }
+                        .padding(6)
                     }
 
                     GroupBox("Particles") {
@@ -172,6 +178,15 @@ struct ContentView: View {
                                         .foregroundStyle(.secondary)
                                 }
                                 Slider(value: $model.params.sph.maxSpeed, in: 2...30)
+
+                                HStack {
+                                    Text("Boundary strength")
+                                        .help("Scales boundary particle influence (0..2).")
+                                    Spacer()
+                                    Text(String(format: "%.2f", model.params.sph.boundaryStrength))
+                                        .foregroundStyle(.secondary)
+                                }
+                                Slider(value: $model.params.sph.boundaryStrength, in: 0...2)
                             }.padding(6)
                         }
 
