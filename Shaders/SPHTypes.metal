@@ -30,6 +30,7 @@ struct GPUParams {
     float  gamma;
     float  viscosity;
     float  xsph;
+    float  maxSpeed;
 
     uint   gridSizeX;
     uint   gridSizeY;

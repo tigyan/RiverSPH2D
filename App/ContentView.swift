@@ -23,6 +23,16 @@ struct ContentView: View {
                     Button("Reset") { model.reset() }
                 }
 
+                GroupBox("Mask") {
+                    Picker("Mask", selection: $model.selectedMaskName) {
+                        ForEach(model.availableMasks, id: \.self) { name in
+                            Text(name.replacingOccurrences(of: ".png", with: "")).tag(name)
+                        }
+                    }
+                    .pickerStyle(.menu)
+                    .padding(6)
+                }
+
                 GroupBox("Particles") {
                     VStack(alignment: .leading) {
                         HStack {
@@ -86,6 +96,9 @@ struct ContentView: View {
                 return
             }
             model.updateEngineParams()
+        }
+        .onChange(of: model.selectedMaskName) { _, _ in
+            model.reset()
         }
         .onAppear { model.bootstrap() }
     }

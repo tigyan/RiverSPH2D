@@ -29,6 +29,7 @@ struct GPUParams {
     var gamma: Float
     var viscosity: Float
     var xsph: Float
+    var maxSpeed: Float
 
     var gridSizeX: UInt32
     var gridSizeY: UInt32

@@ -13,11 +13,19 @@ import simd
 final class AppModel: ObservableObject {
     @Published var params = SPHParameters.defaultV0_1()
     @Published var isRunning: Bool = true
+    @Published var selectedMaskName: String = "river_mask.png"
 
     @Published var stats = SimulationStats()
 
     private(set) var engine: SPHEngine?
     private(set) var obstacle: ObstacleAsset?
+    let availableMasks: [String] = [
+        "river_mask.png",
+        "river_straight.png",
+        "river_meander.png",
+        "river_chicane.png",
+        "river_islands.png"
+    ]
 
     func bootstrap() {
         let ctx = MetalContext.shared
@@ -28,19 +36,12 @@ final class AppModel: ObservableObject {
     func reset() {
         guard let engine else { return }
 
-        // Load mask from app bundle (Resources/Masks/river_mask.png)
-        let bundleURL = Bundle.main.url(forResource: "river_mask", withExtension: "png", subdirectory: "Masks")
-            ?? Bundle.main.url(forResource: "river_mask", withExtension: "png")
-        let cwdURL = URL(fileURLWithPath: FileManager.default.currentDirectoryPath)
-            .appendingPathComponent("Resources/Masks/river_mask.png")
         do {
             let mask: MaskBinary
-            if let url = bundleURL {
+            if let url = maskURL(named: selectedMaskName) {
                 mask = try MaskBinary.load(url: url, threshold: 0.5)
-            } else if FileManager.default.fileExists(atPath: cwdURL.path) {
-                mask = try MaskBinary.load(url: cwdURL, threshold: 0.5)
             } else {
-                print("Mask not found. Using procedural default mask.")
+                print("Mask not found: \(selectedMaskName). Using procedural default mask.")
                 mask = makeDefaultMask(width: 512, height: 256)
             }
             let mismatch = MaskValidation.tileMismatchX(mask: mask)
@@ -66,6 +67,25 @@ final class AppModel: ObservableObject {
         } catch {
             print("Reset error: \(error)")
         }
+    }
+
+    private func maskURL(named name: String) -> URL? {
+        let ns = name as NSString
+        let base = ns.deletingPathExtension
+        let ext = ns.pathExtension.isEmpty ? "png" : ns.pathExtension
+
+        if let url = Bundle.main.url(forResource: base, withExtension: ext, subdirectory: "Masks") {
+            return url
+        }
+        if let url = Bundle.main.url(forResource: base, withExtension: ext) {
+            return url
+        }
+        let cwdURL = URL(fileURLWithPath: FileManager.default.currentDirectoryPath)
+            .appendingPathComponent("Resources/Masks/\(base).\(ext)")
+        if FileManager.default.fileExists(atPath: cwdURL.path) {
+            return cwdURL
+        }
+        return nil
     }
 
     private func makeDefaultMask(width: Int, height: Int) -> MaskBinary {

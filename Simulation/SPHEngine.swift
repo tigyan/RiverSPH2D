@@ -204,6 +204,7 @@ final class SPHEngine {
             gamma: gamma,
             viscosity: params.sph.viscosity,
             xsph: params.sph.xsph,
+            maxSpeed: params.sph.maxSpeed,
             gridSizeX: UInt32(derived.gridSizeX),
             gridSizeY: UInt32(derived.gridSizeY),
             gridCount: UInt32(derived.gridCount),
@@ -301,11 +302,7 @@ final class SPHEngine {
         let posPtr = buffers.pos.contents().bindMemory(to: SIMD2<Float>.self, capacity: n)
         let velPtr = buffers.vel.contents().bindMemory(to: SIMD2<Float>.self, capacity: n)
 
-        // Rejection sampling по пиксельной маске
-        // (быстро и просто для старта; позже можно ускорить alias table)
-        var i = 0
         var seed: UInt64 = 0x12345678
-
         func rng() -> Float {
             // xorshift64*
             seed &+= 0x9E3779B97F4A7C15
@@ -316,14 +313,80 @@ final class SPHEngine {
             return Float(z & 0xFFFFFF) / Float(0x1000000)
         }
 
+        func wrapX(_ x: Float) -> Float {
+            x - floor(x / Lx) * Lx
+        }
+
+        func isFluidWorld(x: Float, y: Float) -> Bool {
+            let wx = wrapX(x)
+            let wy = min(max(y, 0.0), Ly - 1e-5)
+            let px = min(W - 1, max(0, Int((wx / Lx) * Float(W))))
+            let py = min(H - 1, max(0, Int((wy / Ly) * Float(H))))
+            return mask.isFluid(x: px, y: py)
+        }
+
+        // Стараемся спавнить на регулярной сетке, чтобы уменьшить слипание.
+        if let derived = derived {
+            let spacing = max(1e-4, derived.particleSpacing)
+            let jitter = 0.35 * spacing
+            var candidates: [SIMD2<Float>] = []
+            candidates.reserveCapacity(n)
+
+            var y: Float = 0.5 * spacing
+            while y < Ly {
+                var x: Float = 0.5 * spacing
+                while x < Lx {
+                    if isFluidWorld(x: x, y: y) {
+                        candidates.append(SIMD2<Float>(x, y))
+                    }
+                    x += spacing
+                }
+                y += spacing
+            }
+
+            // Shuffle candidates (Fisher-Yates)
+            if candidates.count > 1 {
+                for i in stride(from: candidates.count - 1, through: 1, by: -1) {
+                    let j = Int(rng() * Float(i + 1))
+                    candidates.swapAt(i, j)
+                }
+            }
+
+            var i = 0
+            let take = min(n, candidates.count)
+            while i < take {
+                var p = candidates[i]
+                let jx = (rng() * 2.0 - 1.0) * jitter
+                let jy = (rng() * 2.0 - 1.0) * jitter
+                let px = p.x + jx
+                let py = p.y + jy
+                if isFluidWorld(x: px, y: py) {
+                    p = SIMD2<Float>(wrapX(px), min(max(py, 0.0), Ly))
+                }
+                posPtr[i] = p
+                velPtr[i] = SIMD2<Float>(0, 0)
+                i += 1
+            }
+
+            // Если клеток не хватило, добиваем через rejection.
+            while i < n {
+                let x = rng() * Lx
+                let y = rng() * Ly
+                if isFluidWorld(x: x, y: y) {
+                    posPtr[i] = SIMD2<Float>(x, y)
+                    velPtr[i] = SIMD2<Float>(0, 0)
+                    i += 1
+                }
+            }
+            return
+        }
+
+        // Fallback: rejection sampling.
+        var i = 0
         while i < n {
             let x = rng() * Lx
             let y = rng() * Ly
-
-            let px = min(W - 1, max(0, Int((x / Lx) * Float(W))))
-            let py = min(H - 1, max(0, Int((y / Ly) * Float(H))))
-
-            if mask.isFluid(x: px, y: py) {
+            if isFluidWorld(x: x, y: y) {
                 posPtr[i] = SIMD2<Float>(x, y)
                 velPtr[i] = SIMD2<Float>(0, 0)
                 i += 1

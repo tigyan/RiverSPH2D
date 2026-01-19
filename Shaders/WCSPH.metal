@@ -109,8 +109,8 @@ kernel void computeDensityPressure(
 
     float rhoSafe = max(rho, 0.5f * gp.restDensity);
     float pres = gp.stiffness * (pow(rhoSafe / gp.restDensity, gp.gamma) - 1.0f);
-    // Allow mild negative pressure to reduce voids at low particle counts.
-    pres = clamp(pres, -0.5f * gp.stiffness, 2.0f * gp.stiffness);
+    // Mild negative pressure to reduce voids without tensile blowups.
+    pres = clamp(pres, -0.1f * gp.stiffness, 1.5f * gp.stiffness);
 
     density[id] = rho;
     pressure[id] = pres;
@@ -206,6 +206,10 @@ kernel void computeForcesIntegrate(
 
     v += acc * gp.dt;
     v += gp.xsph * xsph;
+    float speed = length(v);
+    if (speed > gp.maxSpeed && speed > 1e-6f) {
+        v *= gp.maxSpeed / speed;
+    }
     p += v * gp.dt;
 
     // Periodic X

@@ -27,6 +27,8 @@ struct SPHParameters: Codable, Equatable {
         var soundSpeed: Float = 20.0
         /// XSPH velocity smoothing (0..0.1)
         var xsph: Float = 0.08
+        /// Safety clamp for extreme bursts
+        var maxSpeed: Float = 12.0
     }
     struct Flow: Codable, Equatable {
         /// Ускорение вправо (аналог g*S)
@@ -40,7 +42,7 @@ struct SPHParameters: Codable, Equatable {
     }
     struct Time: Codable, Equatable {
         var fixedDt: Float = 1.0 / 60.0
-        var substeps: Int = 2
+        var substeps: Int = 4
     }
 
     var domain = Domain()
