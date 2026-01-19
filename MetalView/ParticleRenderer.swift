@@ -109,12 +109,16 @@ final class ParticleRenderer: NSObject, MTKViewDelegate {
         if renderReady, let engine = model.engine, engine.isReady() {
             enc.setRenderPipelineState(renderPSO)
             let posBuf = engine.particlePositionBuffer()
+            let velBuf = engine.particleVelocityBuffer()
             enc.setVertexBuffer(posBuf, offset: 0, index: 0)
+            enc.setVertexBuffer(velBuf, offset: 0, index: 2)
 
             var uni = RenderUniforms(
                 domainMin: engine.domainMin(),
                 domainMax: engine.domainMax(),
-                pointRadius: model.params.collide.particleRadius
+                pointRadius: model.params.collide.particleRadius,
+                maxSpeed: max(1e-3, model.params.sph.maxSpeed),
+                colorMode: model.colorBySpeed ? 1 : 0
             )
             enc.setVertexBytes(&uni, length: MemoryLayout<RenderUniforms>.stride, index: 1)
             enc.drawPrimitives(type: .point, vertexStart: 0, vertexCount: engine.particleCount())
@@ -130,4 +134,7 @@ struct RenderUniforms {
     var domainMin: SIMD2<Float>
     var domainMax: SIMD2<Float>
     var pointRadius: Float
+    var maxSpeed: Float
+    var colorMode: UInt32
+    var pad0: UInt32 = 0
 }

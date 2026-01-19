@@ -290,6 +290,7 @@ final class SPHEngine {
     }
 
     func particlePositionBuffer() -> MTLBuffer { buffers.pos }
+    func particleVelocityBuffer() -> MTLBuffer { buffers.vel }
     func particleCount() -> Int { buffers.count }
 
     func domainMin() -> SIMD2<Float> { domainMinV }

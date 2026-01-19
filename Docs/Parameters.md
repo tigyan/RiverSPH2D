@@ -1,4 +1,4 @@
-# Parameters (v0.3)
+# Parameters (v0.3.2)
 
 ## domain.Lx
 World length along the river (x-axis). X is periodic.
@@ -23,6 +23,9 @@ Artificial sound speed (controls compressibility).
 
 ## sph.xsph
 XSPH velocity smoothing factor.
+
+## sph.maxSpeed
+Safety clamp for extreme bursts.
 
 ## flow.driveAccel
 Constant acceleration to the right. Interpreted as a simplified "energy slope" term (like g*S).

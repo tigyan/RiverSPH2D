@@ -1,8 +1,8 @@
-# Architecture (v0.3)
+# Architecture (v0.3.2)
 
 ## Modules
 - App/UI (SwiftUI): parameters, play/pause, reset, stats
-- MetalView: MTKView + ParticleRenderer
+- MetalView: MTKView + ParticleRenderer (supports color-by-speed mode)
 - Simulation: SPHEngine encodes compute kernels each frame
 - Obstacle: loads PNG -> binary mask -> periodic SDF -> MTLTexture(R32Float)
 - Boundary: samples mask edge -> static boundary particles

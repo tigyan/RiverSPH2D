@@ -1,7 +1,7 @@
 # RiverSPH2D
 
 macOS (SwiftUI + Metal) prototype for a 2D top-down "river" particle flow.
-Version 0.3 focuses on WCSPH core:
+Version 0.3.2 focuses on WCSPH core:
 - black/white PNG mask for banks + obstacles
 - periodic boundary conditions in X (wrap-around)
 - uniform grid neighbor search on GPU
@@ -20,15 +20,18 @@ Version 0.3 focuses on WCSPH core:
 4. Run.
 
 ## Controls
+- Mask: select a mask from Resources/Masks
+- Particles Count: total particles (reset on release)
 - Drive gS: acceleration to the right (models energy slope / pressure gradient)
 - Drag k: linear drag a -= k*v
 - Radius: collision radius (world units)
 - Friction: tangential damping at solid boundaries
+- Color by speed: render particles by velocity magnitude
 
 ## Why periodic X?
 The domain represents a repeating segment of a river channel. Particles wrap from x=Lx to x=0.
 
-## Known limitations (v0.3)
+## Known limitations (v0.3.2)
 - Weakly compressible (WCSPH), not strictly incompressible
 - Boundary particles are uniform samples from the mask (no exact wall integration)
 - Particle spawn uses CPU rejection sampling (reset-time only)

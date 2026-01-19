@@ -14,6 +14,7 @@ final class AppModel: ObservableObject {
     @Published var params = SPHParameters.defaultV0_1()
     @Published var isRunning: Bool = true
     @Published var selectedMaskName: String = "river_mask.png"
+    @Published var colorBySpeed: Bool = false
 
     @Published var stats = SimulationStats()
 
