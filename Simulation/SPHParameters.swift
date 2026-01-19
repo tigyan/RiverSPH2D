@@ -19,6 +19,8 @@ struct SPHParameters: Codable, Equatable {
         var restDensity: Float = 1000.0
         /// Viscosity coefficient (viscous force)
         var viscosity: Float = 0.35
+        /// Delta-SPH density diffusion (0..0.2)
+        var deltaSPH: Float = 0.1
         /// h = smoothingFactor * particleSpacing
         var smoothingFactor: Float = 2.0
         /// Equation of state exponent (Tait)

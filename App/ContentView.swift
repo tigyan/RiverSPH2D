@@ -15,7 +15,7 @@ struct ContentView: View {
         HStack(spacing: 12) {
             ScrollView {
                 VStack(alignment: .leading, spacing: 10) {
-                    Text("RiverSPH2D v0.4")
+                    Text("RiverSPH2D v0.4.01")
                         .font(.headline)
                         .foregroundStyle(.primary)
 
@@ -133,6 +133,15 @@ struct ContentView: View {
                                         .foregroundStyle(.secondary)
                                 }
                                 Slider(value: $model.params.sph.viscosity, in: 0...1)
+
+                                HStack {
+                                    Text("Delta-SPH")
+                                        .help("Density diffusion to reduce voids (0..0.2).")
+                                    Spacer()
+                                    Text(String(format: "%.3f", model.params.sph.deltaSPH))
+                                        .foregroundStyle(.secondary)
+                                }
+                                Slider(value: $model.params.sph.deltaSPH, in: 0...0.2)
 
                                 HStack {
                                     Text("Smoothing")

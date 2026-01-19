@@ -29,6 +29,8 @@ struct GPUParams {
     float  stiffness;
     float  gamma;
     float  viscosity;
+    float  deltaSPH;
+    float  soundSpeed;
     float  xsph;
     float  maxSpeed;
     float  boundaryStrength;

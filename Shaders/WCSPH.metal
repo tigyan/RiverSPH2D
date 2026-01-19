@@ -117,6 +117,65 @@ kernel void computeDensityPressure(
     pressure[id] = pres;
 }
 
+kernel void computeDeltaDensity(
+    device const float2* pos [[buffer(0)]],
+    device float* density [[buffer(1)]],
+    device float* pressure [[buffer(2)]],
+    device atomic_int* gridHead [[buffer(3)]],
+    device const int* gridNext [[buffer(4)]],
+    constant GPUParams& gp [[buffer(5)]],
+    uint id [[thread_position_in_grid]]
+){
+    if (id >= gp.particleCount) return;
+    if (gp.deltaSPH <= 1e-6f) return;
+
+    float h = max(gp.smoothingLength, 1e-5f);
+    float h2 = h * h;
+    float h5 = h2 * h2 * h;
+    float spikyGrad = -30.0f / (M_PI_F * h5);
+
+    float2 p = pos[id];
+    float rhoI = max(density[id], 0.5f * gp.restDensity);
+    float sum = 0.0f;
+
+    int2 c = cellCoord(p, gp);
+    for (int oy = -1; oy <= 1; ++oy) {
+        int ny = clamp(c.y + oy, 0, int(gp.gridSizeY) - 1);
+        for (int ox = -1; ox <= 1; ++ox) {
+            int nx = c.x + ox;
+            if (nx < 0) nx += int(gp.gridSizeX);
+            if (nx >= int(gp.gridSizeX)) nx -= int(gp.gridSizeX);
+
+            uint cell = uint(ny) * gp.gridSizeX + uint(nx);
+            int j = atomic_load_explicit(&gridHead[cell], memory_order_relaxed);
+            while (j != -1) {
+                if (j != int(id)) {
+                    float2 r = deltaPeriodic(p, pos[j], gp);
+                    float r2 = dot(r, r);
+                    if (r2 < h2 && r2 > 1e-12f) {
+                        float rlen = sqrt(r2);
+                        float2 grad = spikyGrad * (h - rlen) * (h - rlen) * (r / rlen);
+                        float rhoJ = max(density[j], 0.5f * gp.restDensity);
+                        float term = (rhoJ - rhoI) / rhoJ;
+                        float denom = r2 + 0.01f * h2;
+                        sum += gp.particleMass * term * dot(r, grad) / denom;
+                    }
+                }
+                j = gridNext[j];
+            }
+        }
+    }
+
+    float rhoNew = rhoI + 2.0f * gp.deltaSPH * gp.soundSpeed * h * sum * gp.dt;
+    rhoNew = max(rhoNew, 0.5f * gp.restDensity);
+
+    float pres = gp.stiffness * (pow(rhoNew / gp.restDensity, gp.gamma) - 1.0f);
+    pres = clamp(pres, -0.1f * gp.stiffness, 1.5f * gp.stiffness);
+
+    density[id] = rhoNew;
+    pressure[id] = pres;
+}
+
 kernel void computeForcesIntegrate(
     device float2* pos [[buffer(0)]],
     device float2* vel [[buffer(1)]],

@@ -28,6 +28,8 @@ struct GPUParams {
     var stiffness: Float
     var gamma: Float
     var viscosity: Float
+    var deltaSPH: Float
+    var soundSpeed: Float
     var xsph: Float
     var maxSpeed: Float
     var boundaryStrength: Float

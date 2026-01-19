@@ -7,6 +7,8 @@ macOS (SwiftUI + Metal) prototype for a 2D top-down "river" particle flow (WCSPH
 - Periodic X boundary (wrap-around)
 - Mask-defined banks and obstacles
 - Optional color-by-speed rendering
+- Velocity field + arrow overlay
+- Delta-SPH density diffusion (reduces voids/pressure noise)
 
 ## Requirements
 - macOS 13+ (Apple Silicon recommended)

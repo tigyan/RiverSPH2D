@@ -1,4 +1,4 @@
-# Architecture (v0.4)
+# Architecture (v0.4.01)
 
 ## Modules
 - App/UI (SwiftUI): parameters, play/pause, reset, stats
@@ -16,8 +16,9 @@ Renderer.draw():
 1) clearGridHeads: reset spatial hash
 2) buildGrid: insert fluid particles into grid
 3) computeDensityPressure: rho + p for each fluid particle
-4) computeForcesIntegrate: pressure + viscosity + drive/drag, integrate
-5) collideSDF: push out from solids using SDF gradient, apply friction
+4) computeDeltaDensity: Delta-SPH diffusion to reduce voids/pressure noise
+5) computeForcesIntegrate: pressure + viscosity + drive/drag, integrate
+6) collideSDF: push out from solids using SDF gradient, apply friction
 
 ## Coordinate system
 World domain:

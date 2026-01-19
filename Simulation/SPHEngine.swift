@@ -16,6 +16,7 @@ final class SPHEngine {
     private var clearGridPSO: MTLComputePipelineState!
     private var buildGridPSO: MTLComputePipelineState!
     private var densityPSO: MTLComputePipelineState!
+    private var deltaDensityPSO: MTLComputePipelineState!
     private var forcesPSO: MTLComputePipelineState!
     private var fieldPSO: MTLComputePipelineState!
     private var collidePSO: MTLComputePipelineState!
@@ -76,6 +77,11 @@ final class SPHEngine {
             pipelinesReady = false
             return
         }
+        guard let fDelta = lib.makeFunction(name: "computeDeltaDensity") else {
+            print("Missing Metal function: computeDeltaDensity (check Shaders/WCSPH.metal in target)")
+            pipelinesReady = false
+            return
+        }
         guard let fForces = lib.makeFunction(name: "computeForcesIntegrate") else {
             print("Missing Metal function: computeForcesIntegrate (check Shaders/WCSPH.metal in target)")
             pipelinesReady = false
@@ -96,6 +102,7 @@ final class SPHEngine {
             clearGridPSO = try device.makeComputePipelineState(function: fClear)
             buildGridPSO = try device.makeComputePipelineState(function: fBuild)
             densityPSO = try device.makeComputePipelineState(function: fDensity)
+            deltaDensityPSO = try device.makeComputePipelineState(function: fDelta)
             forcesPSO = try device.makeComputePipelineState(function: fForces)
             fieldPSO = try device.makeComputePipelineState(function: fField)
             collidePSO = try device.makeComputePipelineState(function: fCollide)
@@ -225,6 +232,8 @@ final class SPHEngine {
             stiffness: stiffness,
             gamma: gamma,
             viscosity: params.sph.viscosity,
+            deltaSPH: params.sph.deltaSPH,
+            soundSpeed: params.sph.soundSpeed,
             xsph: params.sph.xsph,
             maxSpeed: params.sph.maxSpeed,
             boundaryStrength: params.sph.boundaryStrength,
@@ -277,6 +286,16 @@ final class SPHEngine {
             enc.setBuffer(boundaryPsi, offset: 0, index: 8)
             enc.setBuffer(gpuParamsBuf, offset: 0, index: 9)
             dispatch(enc, count: buffers.count, pso: densityPSO)
+
+            // delta-SPH density diffusion (optional)
+            enc.setComputePipelineState(deltaDensityPSO)
+            enc.setBuffer(buffers.pos, offset: 0, index: 0)
+            enc.setBuffer(buffers.density, offset: 0, index: 1)
+            enc.setBuffer(buffers.pressure, offset: 0, index: 2)
+            enc.setBuffer(gridHead, offset: 0, index: 3)
+            enc.setBuffer(buffers.gridNext, offset: 0, index: 4)
+            enc.setBuffer(gpuParamsBuf, offset: 0, index: 5)
+            dispatch(enc, count: buffers.count, pso: deltaDensityPSO)
 
             // forces + integrate
             enc.setComputePipelineState(forcesPSO)

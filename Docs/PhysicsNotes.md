@@ -28,6 +28,9 @@ Forces per particle:
 We also apply optional XSPH velocity smoothing:
   v_i += eps * Σ m_j (v_j - v_i)/rho_j * W(r_ij, h)
 
+Delta-SPH density diffusion damps pressure noise and helps prevent voids:
+  rho_i += 2 * delta * c0 * h * Σ m_j ( (rho_j - rho_i)/rho_j ) * (r_ij · ∇W_ij) / (r_ij^2 + 0.01 h^2) * dt
+
 ## Boundary particles
 Solids are represented by static boundary particles sampled along the mask edge.
 They contribute to density and pressure forces but do not move.

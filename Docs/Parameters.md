@@ -1,4 +1,4 @@
-# Parameters (v0.4)
+# Parameters (v0.4.01)
 
 ## domain.Lx
 World length along the river (x-axis). X is periodic.
@@ -11,6 +11,9 @@ Rest density (2D mass per area).
 
 ## sph.viscosity
 Viscosity coefficient for the viscous force.
+
+## sph.deltaSPH
+Density diffusion coefficient (Delta-SPH) to reduce voids and pressure noise.
 
 ## sph.smoothingFactor
 Smoothing length factor: h = smoothingFactor * particleSpacing.
