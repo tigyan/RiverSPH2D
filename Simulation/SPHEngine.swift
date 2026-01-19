@@ -22,6 +22,7 @@ final class SPHEngine {
     private var buffers: ParticleBuffers!
     private var gridHead: MTLBuffer!
     private var boundaryPos: MTLBuffer!
+    private var boundaryPsi: MTLBuffer!
     private var boundaryGridHead: MTLBuffer!
     private var boundaryGridNext: MTLBuffer!
     private var boundaryCount: Int = 0
@@ -144,6 +145,10 @@ final class SPHEngine {
             length: MemoryLayout<SIMD2<Float>>.stride * boundaryAlloc,
             options: [.storageModeShared]
         )
+        boundaryPsi = device.makeBuffer(
+            length: MemoryLayout<Float>.stride * boundaryAlloc,
+            options: [.storageModeShared]
+        )
         boundaryGridHead = device.makeBuffer(
             length: MemoryLayout<Int32>.stride * gridCount,
             options: [.storageModeShared]
@@ -157,6 +162,11 @@ final class SPHEngine {
             let ptr = boundaryPos.contents().bindMemory(to: SIMD2<Float>.self, capacity: boundaryCount)
             for i in 0..<boundaryCount {
                 ptr[i] = boundaryPositions[i]
+            }
+            let psi = computeBoundaryPsi(positions: boundaryPositions)
+            let psiPtr = boundaryPsi.contents().bindMemory(to: Float.self, capacity: boundaryCount)
+            for i in 0..<boundaryCount {
+                psiPtr[i] = psi[i]
             }
         }
         buildBoundaryGrid(positions: boundaryPositions)
@@ -251,7 +261,8 @@ final class SPHEngine {
             enc.setBuffer(boundaryPos, offset: 0, index: 5)
             enc.setBuffer(boundaryGridHead, offset: 0, index: 6)
             enc.setBuffer(boundaryGridNext, offset: 0, index: 7)
-            enc.setBuffer(gpuParamsBuf, offset: 0, index: 8)
+            enc.setBuffer(boundaryPsi, offset: 0, index: 8)
+            enc.setBuffer(gpuParamsBuf, offset: 0, index: 9)
             dispatch(enc, count: buffers.count, pso: densityPSO)
 
             // forces + integrate
@@ -265,7 +276,8 @@ final class SPHEngine {
             enc.setBuffer(boundaryPos, offset: 0, index: 6)
             enc.setBuffer(boundaryGridHead, offset: 0, index: 7)
             enc.setBuffer(boundaryGridNext, offset: 0, index: 8)
-            enc.setBuffer(gpuParamsBuf, offset: 0, index: 9)
+            enc.setBuffer(boundaryPsi, offset: 0, index: 9)
+            enc.setBuffer(gpuParamsBuf, offset: 0, index: 10)
             dispatch(enc, count: buffers.count, pso: forcesPSO)
 
             // SDF collision as a final safety clamp
@@ -459,7 +471,62 @@ final class SPHEngine {
         }
     }
 
-    private func gridCellIndex(for p: SIMD2<Float>, derived: DerivedSPH) -> Int {
+    private func computeBoundaryPsi(positions: [SIMD2<Float>]) -> [Float] {
+        guard let derived else { return [] }
+        let count = positions.count
+        if count == 0 { return [] }
+
+        let h = max(derived.smoothingLength, 1e-5)
+        let h2 = h * h
+        let h4 = h2 * h2
+        let h8 = h4 * h4
+        let poly6: Float = 4.0 / (Float.pi * h8)
+
+        var head = [Int](repeating: -1, count: derived.gridCount)
+        var next = [Int](repeating: -1, count: count)
+        for (i, p) in positions.enumerated() {
+            let cell = gridCellIndex(for: p, derived: derived)
+            next[i] = head[cell]
+            head[cell] = i
+        }
+
+        var psi = [Float](repeating: 0, count: count)
+        for i in 0..<count {
+            let p = positions[i]
+            let (cx, cy) = gridCellCoord(for: p, derived: derived)
+            var sumW: Float = 0
+
+            for oy in -1...1 {
+                let ny = min(max(cy + oy, 0), derived.gridSizeY - 1)
+                for ox in -1...1 {
+                    var nx = cx + ox
+                    if nx < 0 { nx += derived.gridSizeX }
+                    if nx >= derived.gridSizeX { nx -= derived.gridSizeX }
+                    let cell = ny * derived.gridSizeX + nx
+                    var j = head[cell]
+                    while j != -1 {
+                        let r = deltaPeriodic(p, positions[j])
+                        let r2 = r.x * r.x + r.y * r.y
+                        if r2 < h2 {
+                            let t = h2 - r2
+                            sumW += poly6 * t * t * t
+                        }
+                        j = next[j]
+                    }
+                }
+            }
+
+            if sumW > 1e-8 {
+                psi[i] = derived.restDensity / sumW
+            } else {
+                psi[i] = derived.restDensity * derived.particleSpacing * derived.particleSpacing
+            }
+        }
+
+        return psi
+    }
+
+    private func gridCellCoord(for p: SIMD2<Float>, derived: DerivedSPH) -> (Int, Int) {
         let Lx = domainMaxV.x - domainMinV.x
         let Ly = domainMaxV.y - domainMinV.y
 
@@ -470,7 +537,19 @@ final class SPHEngine {
 
         let cx = min(derived.gridSizeX - 1, max(0, Int(floor(rx / derived.cellSize))))
         let cy = min(derived.gridSizeY - 1, max(0, Int(floor(ry / derived.cellSize))))
+        return (cx, cy)
+    }
+
+    private func gridCellIndex(for p: SIMD2<Float>, derived: DerivedSPH) -> Int {
+        let (cx, cy) = gridCellCoord(for: p, derived: derived)
         return cy * derived.gridSizeX + cx
+    }
+
+    private func deltaPeriodic(_ a: SIMD2<Float>, _ b: SIMD2<Float>) -> SIMD2<Float> {
+        let Lx = domainMaxV.x - domainMinV.x
+        var d = a - b
+        d.x -= floor((d.x / Lx) + 0.5) * Lx
+        return d
     }
 
     private func wrapX(_ x: Float, Lx: Float) -> Float {

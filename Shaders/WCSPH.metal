@@ -61,7 +61,8 @@ kernel void computeDensityPressure(
     device const float2* bPos [[buffer(5)]],
     device atomic_int* bGridHead [[buffer(6)]],
     device const int* bGridNext [[buffer(7)]],
-    constant GPUParams& gp [[buffer(8)]],
+    device const float* bPsi [[buffer(8)]],
+    constant GPUParams& gp [[buffer(9)]],
     uint id [[thread_position_in_grid]]
 ){
     if (id >= gp.particleCount) return;
@@ -100,7 +101,7 @@ kernel void computeDensityPressure(
                 float r2 = dot(r, r);
                 if (r2 < h2) {
                     float t = h2 - r2;
-                    rho += gp.particleMass * poly6 * t * t * t;
+                    rho += bPsi[jb] * poly6 * t * t * t;
                 }
                 jb = bGridNext[jb];
             }
@@ -126,7 +127,8 @@ kernel void computeForcesIntegrate(
     device const float2* bPos [[buffer(6)]],
     device atomic_int* bGridHead [[buffer(7)]],
     device const int* bGridNext [[buffer(8)]],
-    constant GPUParams& gp [[buffer(9)]],
+    device const float* bPsi [[buffer(9)]],
+    constant GPUParams& gp [[buffer(10)]],
     uint id [[thread_position_in_grid]]
 ){
     if (id >= gp.particleCount) return;
@@ -188,14 +190,14 @@ kernel void computeForcesIntegrate(
                     float rlen = sqrt(r2);
                     float2 grad = spikyGrad * (h - rlen) * (h - rlen) * (r / rlen);
 
-                    acc -= gp.particleMass * (pI / (rhoI * rhoI)) * grad;
+                    acc -= bPsi[jb] * (pI / (rhoI * rhoI)) * grad;
 
                     float lap = viscLap * (h - rlen);
-                    visc += gp.particleMass * (float2(0.0f) - v) / gp.restDensity * lap;
+                    visc += bPsi[jb] * (float2(0.0f) - v) / gp.restDensity * lap;
 
                     float t = h2 - r2;
                     float w = poly6 * t * t * t;
-                    xsph += gp.particleMass * (float2(0.0f) - v) / gp.restDensity * w;
+                    xsph += bPsi[jb] * (float2(0.0f) - v) / gp.restDensity * w;
                 }
                 jb = bGridNext[jb];
             }

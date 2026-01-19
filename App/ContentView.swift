@@ -15,7 +15,7 @@ struct ContentView: View {
         HStack(spacing: 12) {
             ScrollView {
                 VStack(alignment: .leading, spacing: 10) {
-                    Text("RiverSPH2D v0.3.2")
+                    Text("RiverSPH2D v0.3.41")
                         .font(.headline)
                         .foregroundStyle(.primary)
 

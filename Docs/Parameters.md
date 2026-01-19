@@ -1,4 +1,4 @@
-# Parameters (v0.3.3)
+# Parameters (v0.3.41)
 
 ## domain.Lx
 World length along the river (x-axis). X is periodic.

@@ -18,7 +18,7 @@ enum SDFTextureBuilder {
             mipmapped: false
         )
         desc.usage = [.shaderRead]
-        desc.storageMode = .shared   // на Apple Silicon проще и без сюрпризов
+        desc.storageMode = .shared
 
         guard let tex = device.makeTexture(descriptor: desc) else {
             throw NSError(domain: "SDFTextureBuilder", code: 1,
@@ -34,8 +34,6 @@ enum SDFTextureBuilder {
                 bytesPerRow: bytesPerRow
             )
         }
-
-        // ❌ tex.didModifyRange(...) — УБРАТЬ
         return tex
     }
 }
